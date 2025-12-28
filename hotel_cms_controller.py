@@ -1070,6 +1070,13 @@ class HotelCMSController:
         시작일(YYYY-MM-DD) 문자열을 받아 15일(시작일~시작일+14일)만 처리
         최초 1회만 객실/필터 설정, 이후에는 날짜만 바꾸고 반드시 조회 버튼을 누름
         """
+        # 시작일 미입력 시 오늘 날짜로 대체
+        if not start_date_str or start_date_str.strip() == "":
+            start_date_str = datetime.now().strftime("%Y-%m-%d")
+            print(f"시작일 미입력: 오늘 날짜({start_date_str})로 자동 설정합니다.")
+        if not end_date_str or end_date_str.strip() == "":
+            print("종료일을 입력해야 합니다.")
+            return
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
         end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         current_date = start_date
