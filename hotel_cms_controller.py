@@ -459,6 +459,7 @@ class HotelCMSController:
             판매가능객실 수량 (None이면 빈칸 = 모두 오픈), 또는 'ALERT:메시지'
         """
         print(f"[정책진단] room_type={room_type}, remaining={remaining}, booked={booked}, max_count={max_count}")
+
         if room_type in ('SINGLE', 'TWIN', 'DOUBLE'):
             # 더블룸: 예약 3개 이상이면 모두 오픈(빈칸), 아니면 예약+2~3개(랜덤)
             if room_type == 'DOUBLE':
@@ -469,21 +470,19 @@ class HotelCMSController:
                     val = booked + 2
                     print(f"[정책결과] => {val} (더블룸 예약+2 고정)")
                     return val
-            # 싱글/트윈: 잔여가 2개 이하면 모두 오픈
-            if remaining <= 2:
-                print(f"[정책결과] => None (모두 오픈)")
-                return None
 
         if room_type == 'SINGLE':
-            if booked >= 5:
-                print(f"[정책결과] => {booked + 2} (예약+2)")
-                return booked + 2
-            else:
-                val = booked + random.randint(2, 3)
-                print(f"[정책결과] => {val} (예약+2~3 랜덤)")
-                return val
+            if remaining <= 4:
+                print(f"[정책결과] => None (싱글룸 잔여 4 이하, 모두 오픈)")
+                return None
+            val = booked + 4
+            print(f"[정책결과] => {val} (싱글룸 예약+4 고정)")
+            return val
 
         elif room_type == 'TWIN':
+            if remaining <= 2:
+                print(f"[정책결과] => None (트윈룸 잔여 2 이하, 모두 오픈)")
+                return None
             if booked >= 6:
                 print(f"[정책결과] => {booked + 2} (예약+2)")
                 return booked + 2
@@ -649,60 +648,16 @@ class HotelCMSController:
                                 continue
 
                             # 값이 있고 조건에 맞으면 즉시 건너뛰기 (스크롤/클릭 없이)
+                            # 기존 값과 기대값이 다르면 반드시 값을 입력하도록 수정
                             if current_value and str(current_value).strip():
                                 try:
                                     existing_val = int(current_value)
-                                    if available is not None:
-                                        if room_key == 'SINGLE':
-                                            if booked >= 5:
-                                                expected = booked + 2
-                                                if existing_val == expected:
-                                                    skip_count += 1
-                                                    if skip_count <= 3:
-                                                        print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (예약:{booked})")
-                                                    count += 1
-                                                    continue
-                                            else:
-                                                min_val = booked + 2
-                                                max_val = booked + 3
-                                                if min_val <= existing_val <= max_val:
-                                                    skip_count += 1
-                                                    if skip_count <= 3:
-                                                        print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (예약:{booked}, 범위:{min_val}~{max_val})")
-                                                    count += 1
-                                                    continue
-                                        elif room_key == 'TWIN':
-                                            if booked >= 6:
-                                                expected = booked + 2
-                                                if existing_val == expected:
-                                                    skip_count += 1
-                                                    if skip_count <= 3:
-                                                        print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (예약:{booked})")
-                                                    count += 1
-                                                    continue
-                                            else:
-                                                min_val = booked + 2
-                                                max_val = booked + 3
-                                                if min_val <= existing_val <= max_val:
-                                                    skip_count += 1
-                                                    if skip_count <= 3:
-                                                        print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (예약:{booked}, 범위:{min_val}~{max_val})")
-                                                    count += 1
-                                                    continue
-                                        elif room_key == 'TRIPLE':
-                                            if existing_val == available:
-                                                skip_count += 1
-                                                if skip_count <= 3:
-                                                    print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (예약:{booked})")
-                                                count += 1
-                                                continue
-                                        else:
-                                            if existing_val == available:
-                                                skip_count += 1
-                                                if skip_count <= 3:
-                                                    print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (예약:{booked})")
-                                                count += 1
-                                                continue
+                                    if available is not None and existing_val == available:
+                                        skip_count += 1
+                                        if skip_count <= 3:
+                                            print(f"    [{idx+1}] ✓ 건너뛰기: {existing_val} (정책 기대값과 동일)")
+                                        count += 1
+                                        continue
                                 except:
                                     pass
 
@@ -1074,11 +1029,19 @@ class HotelCMSController:
         if not start_date_str or start_date_str.strip() == "":
             start_date_str = datetime.now().strftime("%Y-%m-%d")
             print(f"시작일 미입력: 오늘 날짜({start_date_str})로 자동 설정합니다.")
+
         if not end_date_str or end_date_str.strip() == "":
-            print("종료일을 입력해야 합니다.")
-            return
-        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+            # 종료일 미입력 시 시작일로부터 1년 뒤로 설정
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            try:
+                end_date = start_date.replace(year=start_date.year + 1)
+            except ValueError:
+                # 윤년 등으로 2월 29일 예외 처리
+                end_date = start_date + timedelta(days=365)
+            print(f"종료일 미입력: 시작일로부터 1년 뒤({end_date.strftime('%Y-%m-%d')})로 자동 설정합니다.")
+        else:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         current_date = start_date
         # 최초 1회: 객실/필터 설정 포함
         if current_date <= end_date:
