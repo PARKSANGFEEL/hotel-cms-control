@@ -480,16 +480,15 @@ class HotelCMSController:
             return val
 
         elif room_type == 'TWIN':
-            if remaining <= 2:
-                print(f"[정책결과] => None (트윈룸 잔여 2 이하, 모두 오픈)")
+            if remaining <= 4:
+                print(f"[정책결과] => None (트윈룸 잔여 4 이하, 모두 오픈)")
                 return None
-            if booked >= 6:
-                print(f"[정책결과] => {booked + 2} (예약+2)")
+            if remaining >= 3 and booked >= 6:
+                print(f"[정책결과] => {booked + 2} (트윈룸 잔여 3이상 & 예약 6이상, 예약+2)")
                 return booked + 2
-            else:
-                val = booked + random.randint(2, 3)
-                print(f"[정책결과] => {val} (예약+2~3 랜덤)")
-                return val
+            if remaining >= 3 and booked < 6:
+                print(f"[정책결과] => {booked + 4} (트윈룸 잔여 3이상 & 예약 6미만, 예약+4)")
+                return booked + 4
 
         elif room_type == 'TRIPLE':
             if booked >= 5:
@@ -1025,22 +1024,19 @@ class HotelCMSController:
         시작일(YYYY-MM-DD) 문자열을 받아 15일(시작일~시작일+14일)만 처리
         최초 1회만 객실/필터 설정, 이후에는 날짜만 바꾸고 반드시 조회 버튼을 누름
         """
-        # 시작일 미입력 시 오늘 날짜로 대체
+        # 시작일 미입력 시 오늘+3일로 자동 설정
         if not start_date_str or start_date_str.strip() == "":
-            start_date_str = datetime.now().strftime("%Y-%m-%d")
-            print(f"시작일 미입력: 오늘 날짜({start_date_str})로 자동 설정합니다.")
-
-        if not end_date_str or end_date_str.strip() == "":
-            # 종료일 미입력 시 시작일로부터 1년 뒤로 설정
-            start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-            try:
-                end_date = start_date.replace(year=start_date.year + 1)
-            except ValueError:
-                # 윤년 등으로 2월 29일 예외 처리
-                end_date = start_date + timedelta(days=365)
-            print(f"종료일 미입력: 시작일로부터 1년 뒤({end_date.strftime('%Y-%m-%d')})로 자동 설정합니다.")
+            start_date = datetime.now() + timedelta(days=3)
+            start_date_str = start_date.strftime("%Y-%m-%d")
+            print(f"시작일 미입력: 오늘+3일({start_date_str})로 자동 설정합니다.")
         else:
             start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+
+        # 종료일 미입력 시 오늘+11개월로 자동 설정
+        if not end_date_str or end_date_str.strip() == "":
+            end_date = datetime.now() + timedelta(days=30*11)
+            print(f"종료일 미입력: 오늘+11개월({end_date.strftime('%Y-%m-%d')})로 자동 설정합니다.")
+        else:
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
         current_date = start_date
         # 최초 1회: 객실/필터 설정 포함
