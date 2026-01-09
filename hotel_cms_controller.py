@@ -12,12 +12,438 @@ import time
 import random
 import config
 from datetime import datetime, timedelta
+import pandas as pd
+import os
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
 
 
 
 
 class HotelCMSController:
     """호텔 CMS를 제어하는 클래스"""
+
+    def highlight_closed_rooms_in_excel(self, target_date, closed_rooms):
+        """마감된 방 타입을 엑셀 파일에서 노란색으로 하이라이트"""
+        try:
+            excel_path = os.path.join(os.path.dirname(__file__), "기준가격.xlsx")
+            if not os.path.exists(excel_path):
+                print(f"  ⚠ 하이라이트 대상 파일 없음: {excel_path}")
+                return
+            
+            # openpyxl로 엑셀 파일 열기
+            wb = load_workbook(excel_path)
+            ws = wb.active
+            
+            # 첫 번째 열에서 대상 날짜 행 찾기
+            target_row = None
+            for row_idx, cell in enumerate(ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=1), 1):
+                try:
+                    cell_date = pd.Timestamp(cell[0].value).strftime("%Y-%m-%d")
+                    if cell_date == target_date:
+                        target_row = row_idx
+                        break
+                except Exception:
+                    continue
+            
+            if target_row is None:
+                print(f"  ⚠ 엑셀에서 {target_date} 행을 찾지 못했습니다.")
+                return
+            
+            # 노란색 하이라이트 설정
+            yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
+            
+            # 마감된 방에 해당하는 셀에 하이라이트 적용
+            for col_idx, cell in enumerate(ws.iter_rows(min_row=target_row, max_row=target_row, min_col=1, max_col=ws.max_column), 1):
+                room_type = ws.cell(row=1, column=col_idx).value
+                if room_type in closed_rooms:
+                    cell[0].fill = yellow_fill
+                    print(f"    → '{room_type}' 셀을 노란색으로 하이라이트함")
+            
+            # 파일 저장
+            wb.save(excel_path)
+            print(f"  ✓ {len(closed_rooms)}개 마감 방에 대해 엑셀 파일 업데이트 완료")
+        except Exception as e:
+            print(f"  ⚠ 엑셀 하이라이트 작업 실패: {e}")
+
+    def load_base_prices_from_excel(self, target_date=None):
+        """엑셀 파일에서 특정 날짜의 기준가 로드 (방 타입별 기준가)"""
+        try:
+            excel_path = os.path.join(os.path.dirname(__file__), "기준가격.xlsx")
+            if not os.path.exists(excel_path):
+                print(f"  ⚠ 기준가격.xlsx 파일을 찾지 못했습니다: {excel_path}")
+                return {}
+            
+            # 기준값이 될 날짜 (기본: 오늘)
+            if not target_date:
+                target_date = datetime.now().strftime("%Y-%m-%d")
+            
+            df = pd.read_excel(excel_path, sheet_name=0)
+            
+            # 첫 번째 열이 날짜 열이므로 날짜 형식으로 변환
+            date_col = df.iloc[:, 0]
+            
+            # 일치하는 날짜 찾기
+            matching_row = None
+            for idx, date_val in enumerate(date_col):
+                try:
+                    # 날짜 값을 문자열로 변환해서 비교
+                    date_str = pd.Timestamp(date_val).strftime("%Y-%m-%d")
+                    if date_str == target_date:
+                        matching_row = df.iloc[idx]
+                        break
+                except Exception:
+                    continue
+            
+            if matching_row is None:
+                print(f"  ⚠ 엑셀에서 {target_date}에 해당하는 행을 찾지 못했습니다. 첫 번째 행을 사용합니다.")
+                matching_row = df.iloc[0]
+            
+            # 방 타입과 기준가 매핑
+            base_prices = {}
+            for col_idx in range(1, len(df.columns)):
+                room_type = df.columns[col_idx]
+                try:
+                    price = int(float(matching_row.iloc[col_idx]))
+                    base_prices[room_type] = price
+                except (ValueError, TypeError):
+                    continue
+            
+            print(f"  ✓ {target_date}의 기준가 {len(base_prices)}개 로드: {base_prices}")
+            return base_prices
+        except Exception as e:
+            print(f"  ⚠ 기준가 로드 실패: {e}")
+            return {}
+
+    def auto_set_rates_by_rmo(self, start_date=None):
+        """요금관리 메뉴에서 기준가를 기반으로 OTA별 요금 자동입력 (아고다=기준가, 나머지=기준가+5,000)"""
+        try:
+            # 날짜 설정
+            if not start_date:
+                start_date = datetime.now().strftime("%Y-%m-%d")
+            
+            # 해당 날짜의 기준가 로드
+            base_prices = self.load_base_prices_from_excel(start_date)
+            if not base_prices:
+                print("  ⚠ 기준가를 로드하지 못했습니다. 계속 진행합니다.")
+            
+            # 마감된 방을 추적할 리스트
+            closed_rooms_list = []
+
+            print("\n📋 요금관리 메뉴로 이동 중...")
+            rate_url = "https://wingscms.com/#/app/cm/cm03_0200"
+            self.driver.get(rate_url)
+            time.sleep(3)
+            
+            # 시작일 input 찾기 및 값 입력
+            try:
+                date_input = self.wait.until(EC.presence_of_element_located((By.ID, "startDatePicker")))
+                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", date_input)
+                date_input.click()
+                time.sleep(0.2)
+                # 안전하게 초기화 후 값 세팅
+                self.driver.execute_script("arguments[0].value = '';", date_input)
+                self.driver.execute_script("arguments[0].focus();", date_input)
+                date_input.clear()
+                date_input.send_keys(start_date)
+                # input/change 이벤트 트리거
+                self.driver.execute_script("arguments[0].dispatchEvent(new Event('input', {bubbles:true}));", date_input)
+                self.driver.execute_script("arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", date_input)
+                date_input.send_keys(Keys.ENTER)
+                print(f"  ✓ 시작일 입력: {start_date}")
+            except Exception as e:
+                print(f"  ⚠ 시작일 입력 실패: {e}")
+
+            time.sleep(1)
+
+            # 전체 객실 선택 (드롭다운 방식) — 드롭다운 열기 + selectall 클릭
+            try:
+                print("  → 전체 객실 선택 중...")
+                # 드롭다운 열기
+                try:
+                    dropdown_btn = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(@id,'searchRoomType') and contains(@id,'button')]")))
+                except Exception:
+                    dropdown_btn = None
+                
+                if dropdown_btn:
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", dropdown_btn)
+                    time.sleep(0.5)
+                    dropdown_btn.click()
+                    time.sleep(0.8)  # 드롭다운 메뉴 열릴 때까지 대기
+                    print("  ✓ 드롭다운 열음")
+
+                # selectall 요소 찾기
+                sel_candidates = [
+                    "[data-testid='selectall']",
+                    "input[data-testid='selectall-checkbox']",
+                    "span[data-testid='select-all-text']",
+                    "#searchRoomType-option-selectall",
+                ]
+                select_all_el = None
+                for sel in sel_candidates:
+                    try:
+                        select_all_el = self.driver.find_element(By.CSS_SELECTOR, sel)
+                        if select_all_el:
+                            break
+                    except Exception:
+                        continue
+
+                if select_all_el:
+                    try:
+                        aria_sel = select_all_el.get_attribute("aria-selected")
+                        data_sel = select_all_el.get_attribute("data-selected")
+                        if aria_sel == "true" or (data_sel and data_sel != ""):
+                            print("  ✓ 전체 객실 선택 (이미 선택됨)")
+                        else:
+                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", select_all_el)
+                            time.sleep(0.3)
+                            try:
+                                select_all_el.click()
+                            except Exception:
+                                self.driver.execute_script("arguments[0].click();", select_all_el)
+                            print("  ✓ 전체 객실 선택 (클릭함)")
+                            time.sleep(0.5)
+                    except Exception:
+                        try:
+                            self.driver.execute_script("arguments[0].click();", select_all_el)
+                            print("  ✓ 전체 객실 선택 (JS 강제)")
+                            time.sleep(0.5)
+                        except Exception as e2:
+                            print(f"  ⚠ 전체 객실 선택 실패: {e2}")
+                else:
+                    print("  ⚠ 전체 객실 selectall 요소를 찾지 못했습니다.")
+            except Exception as e:
+                print(f"  ⚠ 전체 객실 선택 실패: {e}")
+
+            time.sleep(1)
+
+            # 조회 버튼 클릭
+            try:
+                # 조회 버튼 찾기 (여러 방법으로 시도)
+                search_btn = None
+                try:
+                    search_btn = self.driver.find_element(By.ID, "searchBtn")
+                except Exception:
+                    try:
+                        search_btn = self.driver.find_element(By.XPATH, "//button[@id='searchBtn']")
+                    except Exception:
+                        try:
+                            search_btn = self.driver.find_element(By.XPATH, "//button[contains(@class, 'btn-primary') and .//i[contains(@class, 'search')]]")
+                        except Exception:
+                            pass
+                
+                if not search_btn:
+                    print("  ⚠ 조회 버튼을 찾지 못했습니다.")
+                else:
+                    # 버튼이 클릭 가능할 때까지 대기
+                    self.wait.until(EC.element_to_be_clickable((By.ID, "searchBtn")))
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", search_btn)
+                    time.sleep(0.5)
+                    
+                    # 클릭 시도 (일반 클릭 → JS 클릭)
+                    try:
+                        search_btn.click()
+                    except Exception:
+                        self.driver.execute_script("arguments[0].click();", search_btn)
+                    
+                    print("  ✓ 조회 버튼 클릭")
+                    print("  ⏳ 페이지 로드 대기 중...")
+                    # 페이지가 제대로 로드될 때까지 충분히 기다림
+                    time.sleep(5)
+                    # 추가로 RMO 버튼이 나타날 때까지 대기
+                self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//span[contains(.,'RMO')]")))
+                print("  ✓ 페이지 로드 완료")
+            except Exception as e:
+                print(f"  ⚠ 조회 버튼 클릭 또는 페이지 로드 실패: {e}")
+
+            # 각 객실별 RMO 버튼 클릭 및 요금 입력 (하위 child 행에 반영)
+            rmo_buttons = self.driver.find_elements(By.XPATH, "//span[contains(.,'RMO')]")
+            print(f"  ✓ RMO 버튼 {len(rmo_buttons)}개 발견")
+            for rmo_btn in rmo_buttons:
+                try:
+                    # RMO 버튼이 속한 행의 parent_id 먼저 파악
+                    parent_tr = rmo_btn.find_element(By.XPATH, "ancestor::tr")
+                    parent_id = None
+                    try:
+                        parent_td = parent_tr.find_element(By.XPATH, ".//td[@id]")
+                        parent_id = parent_td.get_attribute("id")
+                    except Exception:
+                        pass
+
+                    if not parent_id:
+                        print("    ⚠ parent_id를 찾지 못해 건너뜁니다.")
+                        continue
+
+                    # 판매 상태 확인 (같은 방 타입의 판매 상태 행 찾기)
+                    try:
+                        # parent_tr의 바로 다음 행에서 data-field='CLOSE_YN' 찾기
+                        status_row = parent_tr.find_element(By.XPATH, "following-sibling::tr[@data-field='CLOSE_YN'][1]")
+                        status_text = status_row.text.strip()
+                        
+                        # "마감" 또는 "Close" 같은 텍스트 확인
+                        if '마감' in status_text or 'close' in status_text.lower():
+                            parent_label = parent_tr.text.strip()
+                            # 방 타입명만 추출 (OTA 정보 제거)
+                            room_type_for_excel = parent_label.split('-')[0].strip() if '-' in parent_label else parent_label
+                            closed_rooms_list.append(room_type_for_excel)
+                            print(f"    ⊘ '{parent_label}': 마감 상태 - 스킵")
+                            continue
+                    except Exception:
+                        # 판매 상태 행을 찾지 못하면 계속 진행
+                        pass
+
+                    print(f"    → RMO 버튼 활성화 중 (parent_id: {parent_id})...")
+                    
+                    # RMO 버튼을 스크롤해서 보이게 하고 클릭
+                    self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", rmo_btn)
+                    time.sleep(0.3)
+                    
+                    # RMO 버튼 클릭 (여러 방법으로 시도)
+                    try:
+                        rmo_btn.click()
+                    except Exception:
+                        self.driver.execute_script("arguments[0].click();", rmo_btn)
+                    
+                    time.sleep(0.5)
+                    
+                    # RMO 버튼 클릭 후 입력란 활성화 확인 (최대 3초 대기)
+                    rmo_input_row = None
+                    for attempt in range(6):  # 0.5초 × 6 = 최대 3초
+                        try:
+                            rmo_input_row = parent_tr.find_element(By.XPATH, "following-sibling::tr[@data-field='RM_RA'][1]")
+                            # 입력란이 실제로 활성화되었는지 확인 (disabled 속성 확인)
+                            rmo_inputs_check = rmo_input_row.find_elements(By.CSS_SELECTOR, "input[type='text']:not([disabled])")
+                            if rmo_inputs_check:
+                                print(f"    ✓ RMO 입력란 활성화 확인됨")
+                                break
+                        except Exception:
+                            pass
+                        if attempt < 5:
+                            time.sleep(0.5)
+                        rmo_input_row = None
+
+                    if not rmo_input_row:
+                        print("    ⚠ RMO 입력 행을 찾지 못해 건너뜁니다.")
+                        continue
+
+                    rmo_inputs = rmo_input_row.find_elements(By.CSS_SELECTOR, "input[type='text']")
+                    if not rmo_inputs:
+                        print("    ⚠ RMO 입력란 없음, 건너뜀")
+                        continue
+                    
+                    # RMO 행의 기준가를 엑셀에서 찾기
+                    parent_label = parent_tr.text.strip()
+                    base_price = None
+                    
+                    # 엑셀에서 해당 방 타입의 기준가 찾기 (정확한 매칭)
+                    for room_type, price in base_prices.items():
+                        # 방 타입명이 parent_label에 포함되어 있는지 확인
+                        if room_type in parent_label:
+                            base_price = price
+                            print(f"    → 엑셀 기준가 매칭: '{room_type}' = {price:,}원")
+                            break
+                    
+                    # 엑셀에서 못 찾으면 RMO 입력값 사용 (첫 번째 컬럼)
+                    if base_price is None:
+                        try:
+                            val = (rmo_inputs[0].get_attribute('value') or '').replace(',', '').strip()
+                            if val.isdigit():
+                                base_price = int(val)
+                                print(f"    → RMO 입력값 사용: {base_price:,}원")
+                        except Exception:
+                            pass
+                    
+                    if base_price is None:
+                        print(f"    ⚠ '{parent_label}'에 대한 기준가를 찾지 못해 건너뜁니다.")
+                        continue
+
+                    # 하위 child tr들 찾기 (같은 parent_id) — parent_id는 이미 확인됨
+                    try:
+                        child_trs = self.driver.find_elements(By.XPATH, f"//tr[contains(@class,'child-{parent_id}') and @data-field='RM_RA']")
+                    except Exception:
+                        child_trs = []
+
+                    if not child_trs:
+                        print(f"    ⚠ 하위 요금 행(child-{parent_id})을 찾지 못했습니다.")
+                        continue
+                    else:
+                        print(f"    → child-{parent_id} 행 {len(child_trs)}개 대상 (기준가: {base_price:,}원)")
+
+                    # OTA 매핑: 기준가를 기반으로 계산 (아고다=기준가, 나머지=기준가+5,000~10,000원 랜덤)
+                    def calc_new_val(label, base_price):
+                        if base_price is None:
+                            return None
+                        label = label.lower()
+                        if 'agoda' in label or '아고다' in label:
+                            return base_price
+                        # 그 외 모든 OTA: 기준가 + 5,000~10,000원 범위의 랜덤 값 (천원 단위)
+                        random_addon = random.randint(5, 10) * 1000  # 5000, 6000, 7000, ..., 10000
+                        return base_price + random_addon
+
+                    for child_tr in child_trs:
+                        try:
+                            label = child_tr.text.strip()
+                            inputs = child_tr.find_elements(By.CSS_SELECTOR, "input[type='text']")
+                            if not inputs:
+                                continue
+                            
+                            # 스크롤해서 해당 행이 화면에 보이도록
+                            self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", child_tr)
+                            time.sleep(0.3)
+                            
+                            # 모든 input에 동일한 기준가 기반 OTA 가격 적용
+                            new_val = calc_new_val(label, base_price)
+                            if new_val is None:
+                                continue
+                            
+                            for idx, inp in enumerate(inputs):
+                                try:
+                                    # 요소가 실제로 상호작용 가능한지 확인
+                                    self.driver.execute_script("arguments[0].removeAttribute('readonly');", inp)
+                                    # 요소가 display:none이면 스킵
+                                    display = self.driver.execute_script("return window.getComputedStyle(arguments[0]).display;", inp)
+                                    if display == 'none':
+                                        continue
+                                    
+
+                                    # 포커스를 먼저 설정
+                                    self.driver.execute_script("arguments[0].focus();", inp)
+                                    time.sleep(0.1)
+                                    inp.clear()
+                                    inp.send_keys(f"{new_val:,}")
+                                except Exception as e_input:
+                                    # 개별 입력 실패는 무시하고 계속 진행
+                                    pass
+                            
+                            display_status = self.driver.execute_script("return window.getComputedStyle(arguments[0]).display;", child_tr)
+                            if display_status != 'none':
+                                print(f"    → {label}: 입력 완료" if label else "    → (공백 행): 입력 완료")
+                        except Exception as e_child:
+                            pass  # 개별 child 행 실패는 조용히 무시
+
+                    time.sleep(0.5)
+                except Exception as e:
+                    print(f"    ⚠ RMO 처리 중 오류: {e}")
+
+            # 저장 버튼 클릭 (테스트 버전: 저장 생략)
+            # try:
+            #     save_btn = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(),'저장')]")))
+            #     save_btn.click()
+            #     print("  ✓ 저장 버튼 클릭")
+            #     time.sleep(2)
+            # except Exception as e:
+            #     print(f"  ⚠ 저장 버튼 클릭 실패: {e}")
+
+            print("✓ 요금 자동입력 완료 (테스트 버전: 저장 미수행)")
+            
+            # 마감된 방이 있으면 엑셀 파일 업데이트
+            if closed_rooms_list:
+                print(f"\n📊 마감된 방 {len(closed_rooms_list)}개에 대해 엑셀 파일 업데이트 중...")
+                self.highlight_closed_rooms_in_excel(start_date, closed_rooms_list)
+        except Exception as e:
+            print(f"❌ 요금 자동입력 전체 실패: {e}")
+            import traceback
+            traceback.print_exc()
 
     def __init__(self):
         """브라우저 초기화"""
@@ -1060,57 +1486,79 @@ class HotelCMSController:
 
 def main():
     """메인 실행 함수"""
-    print("\n처리할 기간을 입력하세요.")
-    start_date_str = input("시작일 (YYYY-MM-DD): ")
-    end_date_str = input("종료일 (YYYY-MM-DD): ")
+
+
+    print("\n실행할 기능을 선택하세요:")
+    print("1. 객실수 자동조정 (기간별)")
+    print("2. 요금 자동입력 (RMO 기반)")
+    option = input("번호 입력 (1 또는 2): ").strip()
+
+    # 기능별 입력값 미리 받기
+    if option == "1":
+        print("\n[객실수 자동조정] 기간을 입력하세요.")
+        start_date_str = input("시작일 (YYYY-MM-DD): ")
+        end_date_str = input("종료일 (YYYY-MM-DD): ")
+    elif option == "2":
+        print("\n[요금 자동입력] 기간을 입력하세요.")
+        start_date_str = input("시작일 (YYYY-MM-DD, 엔터시 오늘): ")
+        end_date_str = input("종료일 (YYYY-MM-DD, 엔터시 시작일+14일): ")
+    else:
+        start_date_str = None
+        end_date_str = None
 
     controller = HotelCMSController()
 
     try:
-        # 1. 브라우저 초기화
         controller.setup_driver()
-
-        # 2. CMS 페이지 접속
         controller.navigate_to_cms()
-
-        # 3. 자동 로그인
         login_success = controller.login()
-
         if not login_success:
-            # 자동 로그인 실패 시 수동 로그인 대기
             print("\n수동으로 로그인을 완료한 후 Enter를 눌러주세요...")
             input()
 
-        # 4. 최초 1회 인벤토리 관리_객실별 페이지 이동 및 객실 선택/필터 설정은 run_for_date_range_with_input에서 처리
-
-        # 5. 기간 입력받아 15일 단위 자동 처리 (이후 반복에서는 객실 선택/필터 설정 생략)
-
-        controller.run_for_date_range_with_input(start_date_str, end_date_str)
-
-        # 변경 이력 엑셀로 저장
-        if controller.change_history:
-            import pandas as pd
-            df = pd.DataFrame(controller.change_history)
-            df.to_excel("change_history.xlsx", index=False)
-            print(f"\n변경 이력(change_history.xlsx) 저장 완료! 변경 건수: {len(df)}")
+        if option == "1":
+            controller.run_for_date_range_with_input(start_date_str, end_date_str)
+            # 변경 이력 엑셀로 저장
+            if controller.change_history:
+                import pandas as pd
+                df = pd.DataFrame(controller.change_history)
+                df.to_excel("change_history.xlsx", index=False)
+                print(f"\n변경 이력(change_history.xlsx) 저장 완료! 변경 건수: {len(df)}")
+            else:
+                print("\n변경된 내역이 없습니다.")
+            print("\n" + "="*60)
+            print("✅ 기간별 판매가능객실 설정 완료!")
+            print("="*60)
+        elif option == "2":
+            # 미입력시 오늘 날짜로 자동
+            if not start_date_str or start_date_str.strip() == "":
+                start_date_str = datetime.now().strftime("%Y-%m-%d")
+                print(f"시작일 미입력: 오늘({start_date_str})로 자동 설정합니다.")
+            # 종료일 미입력시 시작일+14일로 자동 (테스트용 요금 자동입력)
+            if not end_date_str or end_date_str.strip() == "":
+                start_dt = datetime.strptime(start_date_str, "%Y-%m-%d")
+                end_date = start_dt + timedelta(days=14)
+                end_date_str = end_date.strftime("%Y-%m-%d")
+                print(f"종료일 미입력: 시작일+14일({end_date_str})로 자동 설정합니다.")
+            else:
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+            # 날짜 범위 반복 (요금 자동입력)
+            current_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+            while current_date <= end_date:
+                controller.auto_set_rates_by_rmo(current_date.strftime("%Y-%m-%d"))
+                current_date += timedelta(days=1)
+            print("\n" + "="*60)
+            print("✅ 요금 자동입력 완료!")
+            print("="*60)
         else:
-            print("\n변경된 내역이 없습니다.")
-
-        print("\n" + "="*60)
-        print("✅ 기간별 판매가능객실 설정 완료!")
-        print("="*60)
-        # 테스트 시에만 아래 두 줄을 사용하세요.
-        # print("\n확인 후 Enter를 눌러 종료하세요...")
-        # input()
+            print("잘못된 옵션입니다. 프로그램을 종료합니다.")
 
     except KeyboardInterrupt:
         print("\n\n사용자에 의해 중단되었습니다.")
-
     except Exception as e:
         print(f"\n❌ 오류 발생: {e}")
         import traceback
         traceback.print_exc()
-
     finally:
         controller.close()
 
