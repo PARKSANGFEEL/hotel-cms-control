@@ -32,3 +32,7 @@ ROOM_MAX_COUNT = {
 # 브라우저 설정
 HEADLESS = False  # True로 설정하면 브라우저 창이 보이지 않음
 IMPLICIT_WAIT = 10  # 요소를 찾을 때 대기 시간(초)
+
+# 엑셀 안전 모드 설정
+# True: 기준가격.xlsx을 읽기 전용으로 사용(로그/하이라이트 등 쓰기 작업 비활성화)
+EXCEL_READ_ONLY = True
