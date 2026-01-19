@@ -328,7 +328,7 @@ class HotelCMSController:
         try:
             # 날짜 설정
             if not start_date:
-                start_date = datetime.now().strftime("%Y-%m-%d")
+                start_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
             
             # 시작일부터 +14일까지 기준가 모두 로드 (날짜별 맵)
             start_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -533,7 +533,8 @@ class HotelCMSController:
                             # "마감" 또는 "Close" 또는 "closed" 같은 텍스트 확인
                             if '마감' in status_text or 'close' in status_text.lower() or '품절' in status_text:
                                 # 마감된 방 타입 추출: RMO 방 타입 사용 (더 정확)
-                                closed_rooms_list.append(rmo_room_type)
+                                if rmo_room_type not in closed_rooms_list:  # 중복 방지
+                                    closed_rooms_list.append(rmo_room_type)
                                 print(f"    ⊘ {rmo_room_type}: 마감 상태 감지 - 스킵")
                                 continue
                         except Exception as e:
@@ -631,13 +632,17 @@ class HotelCMSController:
 
                         print(f"    → child-{parent_id} 행 처리 중... (RMO 방 타입: {rmo_room_type})")
 
-                        # OTA 매핑: 기준가를 기반으로 계산 (아고다=기준가, 나머지=기준가+7,000~15,000원 랜덤)
+                        # OTA 매핑: 기준가를 기반으로 계산
                         def calc_new_val(label, base_price):
                             if base_price is None:
                                 return None
-                            label = label.lower()
-                            if 'agoda' in label or '아고다' in label:
+                            label_lower = label.lower()
+                            if 'agoda' in label_lower or '아고다' in label_lower:
                                 return base_price
+                            # Trip.com: 별도 산식 없이 기타 OTA와 동일 처리 (기준가 + 10,000~15,000원)
+                            if 'trip.com' in label_lower:
+                                random_addon = random.randint(10, 15) * 1000
+                                return base_price + random_addon
                             # 그 외 모든 OTA: 기준가 + 10,000~15,000원 범위의 랜덤 값 (천원 단위)
                             random_addon = random.randint(10, 15) * 1000  # 10000, 11000, 12000, ..., 15000
                             return base_price + random_addon
@@ -816,18 +821,19 @@ class HotelCMSController:
                                         
                                         # **변경 필요 여부 판단**
                                         needs_change = False
-                                        is_agoda = 'agoda' in label.lower() or '아고다' in label.lower()
+                                        label_lower = label.lower()
+                                        is_agoda = ('agoda' in label_lower) or ('아고다' in label_lower)
 
                                         if is_agoda:
                                             # Agoda: 기준가와 정확히 일치해야 함 (다르면 무조건 덮어쓰기)
                                             needs_change = (current_val != day_base_price)
                                         else:
-                                            # 다른 OTA: 기준가+10,000~15,000 범위 밖이면 덮어쓰기
+                                            # 기타 OTA(Trip 포함): 기준가+10,000~15,000 범위를 벗어나면 덮어쓰기
                                             expected_min = day_base_price + 10000
                                             expected_max = day_base_price + 15000
                                             if current_val == 0 or current_val < expected_min or current_val > expected_max:
                                                 needs_change = True
-                                            # 범위 안에 있으면 그냥 놔둠 (스킵)
+                                            # 범위 안에 있으면 스킵
                                         
                                         if not needs_change:
                                             # 변경 필요 없음 - 스킵
@@ -1948,6 +1954,7 @@ class HotelCMSController:
             
             results = {}
             total_changed = 0  # 실제 변경된 입력 필드 수
+            closed_rooms_list = []  # 마감된 방 추적
             
             for room_key, room_name in config.ROOM_TYPES.items():
                 max_count = config.ROOM_MAX_COUNT.get(room_key, 10)
@@ -2037,6 +2044,19 @@ class HotelCMSController:
                     sales_tr = input_fields[0].find_element(By.XPATH, "./ancestor::tr")
                     remain_tr = sales_tr.find_element(By.XPATH, "./preceding-sibling::tr[@data-field='REMANING'][1]")
                     remain_tds = remain_tr.find_elements(By.TAG_NAME, "td")[2:]  # 앞 2개는 라벨/헤더
+                    
+                    # 마감 상태 확인 (판매가능객실 행 이전의 CLOSE_YN 행 찾기)
+                    is_closed = False
+                    try:
+                        close_row = sales_tr.find_element(By.XPATH, "./preceding-sibling::tr[@data-field='CLOSE_YN'][1]")
+                        close_text = close_row.text.strip().lower()
+                        if '마감' in close_row.text or 'close' in close_text or '품절' in close_row.text:
+                            is_closed = True
+                            if room_name not in closed_rooms_list:
+                                closed_rooms_list.append(room_name)
+                            print(f"  ⊘ {room_name}: 마감 상태 감지 - 스킵")
+                    except Exception:
+                        pass
 
                     for idx, input_field in enumerate(input_fields):
                         try:
@@ -2207,6 +2227,11 @@ class HotelCMSController:
                 print(f"  ⚠ 확인 버튼 클릭 건너뜀: {e}")
             
             print("✅ 저장 완료")
+            
+            # 마감된 방이 있으면 하이라이트 로그 기록
+            if closed_rooms_list:
+                print(f"\n📊 마감된 방 {len(closed_rooms_list)}개에 대해 하이라이트 로그 기록 중...")
+                self.highlight_closed_rooms_in_excel(current_date, closed_rooms_list)
             
             return results
             
