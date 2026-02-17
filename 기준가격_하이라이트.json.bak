@@ -698,5 +698,605 @@
     "date": "2026-05-26",
     "room_type": "Single Room",
     "col_idx": 2
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-28",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-28",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-14",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-14",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-14",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-01-29",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-28",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-01-31",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-01-31",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-01-31",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-03-02",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-02",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-16",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-16",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-16",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-05-01",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-05-01",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-05-01",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-05-01",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-15",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-16",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-16",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-05-31",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-03",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-03",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-02",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-02",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-02",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-02",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-18",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-18",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-03-05",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-20",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-20",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-20",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-20",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-19",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-19",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-19",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-19",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-05-19",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-05-19",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-11",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-11",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-11",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-11",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-02-26",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-26",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-28",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-28",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-28",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-28",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-12",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-12",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-12",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-12",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-27",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-27",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-27",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-27",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-05-27",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-09-09",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-13",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-03-15",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-15",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-15",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-15",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-05-14",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-05-14",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-05-29",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-09-11",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-28",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-28",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-16",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-02-16",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-02-16",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-02-16",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-03-03",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-18",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-17",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-17",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-17",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-16",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-16",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-16",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-16",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-03-31",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-03-31",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-03-31",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-03-31",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-04-30",
+    "room_type": "Single Room",
+    "col_idx": 2
+  },
+  {
+    "date": "2026-04-30",
+    "room_type": "Twin Room",
+    "col_idx": 4
+  },
+  {
+    "date": "2026-04-30",
+    "room_type": "Double Room",
+    "col_idx": 5
+  },
+  {
+    "date": "2026-04-30",
+    "room_type": "Triple Room",
+    "col_idx": 6
+  },
+  {
+    "date": "2026-05-30",
+    "room_type": "Single Room",
+    "col_idx": 2
   }
 ]

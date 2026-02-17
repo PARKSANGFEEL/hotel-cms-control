@@ -326,6 +326,59 @@ class HotelCMSController:
     def auto_set_rates_by_rmo(self, start_date=None):
         """요금관리 메뉴에서 기준가를 기반으로 OTA별 요금 자동입력 (아고다=기준가, 나머지=기준가+5,000)"""
         try:
+            sleep_scale = getattr(config, 'SLEEP_SCALE', 1.0)
+            log_level = getattr(config, 'LOG_LEVEL', 'summary')
+
+            def sleep_s(seconds: float):
+                time.sleep(seconds * sleep_scale)
+
+            def debug(msg: str):
+                if getattr(config, 'VERBOSE_LOGS', False):
+                    print(msg)
+
+            def log_ota(msg: str):
+                if log_level == 'verbose':
+                    print(msg)
+
+            def log_summary(msg: str):
+                if log_level in ('summary', 'verbose'):
+                    print(msg)
+
+            def set_input_value(inp, value_str: str) -> bool:
+                for attempt in range(2):
+                    try:
+                        # 첫 번째 시도: send_keys 사용 (확실한 사용자 입력)
+                        self.driver.execute_script("arguments[0].focus();", inp)
+                        inp.clear()
+                        inp.send_keys(value_str)
+                        
+                        # 값 확인
+                        current_val = (inp.get_attribute('value') or '').replace(',', '').strip()
+                        if current_val == value_str.replace(',', ''):
+                            return True
+                    except Exception:
+                        pass
+                    
+                    # 재시도: JavaScript로 강제 설정
+                    try:
+                        self.driver.execute_script(
+                            "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true})); arguments[0].dispatchEvent(new Event('change', {bubbles:true}));",
+                            inp,
+                            value_str,
+                        )
+                        
+                        # 값 확인
+                        current_val = (inp.get_attribute('value') or '').replace(',', '').strip()
+                        if current_val == value_str.replace(',', ''):
+                            return True
+                    except Exception:
+                        pass
+                    
+                    if attempt < 1:
+                        sleep_s(0.05)
+                
+                return False
+
             # 날짜 설정
             if not start_date:
                 start_date = (datetime.now() + timedelta(days=14)).strftime("%Y-%m-%d")
@@ -347,14 +400,14 @@ class HotelCMSController:
             print("\n📋 요금관리 메뉴로 이동 중...")
             rate_url = "https://wingscms.com/#/app/cm/cm03_0200"
             self.driver.get(rate_url)
-            time.sleep(3)
+            sleep_s(3)
             
             # 시작일 input 찾기 및 값 입력
             try:
                 date_input = self.wait.until(EC.presence_of_element_located((By.ID, "startDatePicker")))
                 self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", date_input)
                 date_input.click()
-                time.sleep(0.2)
+                sleep_s(0.2)
                 # 안전하게 초기화 후 값 세팅
                 self.driver.execute_script("arguments[0].value = '';", date_input)
                 self.driver.execute_script("arguments[0].focus();", date_input)
@@ -368,7 +421,7 @@ class HotelCMSController:
             except Exception as e:
                 print(f"  ⚠ 시작일 입력 실패: {e}")
 
-            time.sleep(1)
+            sleep_s(1)
 
             # 전체 객실 선택 (최초 1회만 수행)
             if not self.rate_rooms_selected:
@@ -382,9 +435,9 @@ class HotelCMSController:
                     
                     if dropdown_btn:
                         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", dropdown_btn)
-                        time.sleep(0.5)
+                        sleep_s(0.5)
                         dropdown_btn.click()
-                        time.sleep(0.8)  # 드롭다운 메뉴 열릴 때까지 대기
+                        sleep_s(0.8)  # 드롭다운 메뉴 열릴 때까지 대기
                         print("  ✓ 드롭다운 열음")
 
                     # selectall 요소 찾기
@@ -411,18 +464,18 @@ class HotelCMSController:
                                 print("  ✓ 전체 객실 선택 (이미 선택됨)")
                             else:
                                 self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", select_all_el)
-                                time.sleep(0.3)
+                                sleep_s(0.3)
                                 try:
                                     select_all_el.click()
                                 except Exception:
                                     self.driver.execute_script("arguments[0].click();", select_all_el)
                                 print("  ✓ 전체 객실 선택 (클릭함)")
-                                time.sleep(0.5)
+                                sleep_s(0.5)
                         except Exception:
                             try:
                                 self.driver.execute_script("arguments[0].click();", select_all_el)
                                 print("  ✓ 전체 객실 선택 (JS 강제)")
-                                time.sleep(0.5)
+                                sleep_s(0.5)
                             except Exception as e2:
                                 print(f"  ⚠ 전체 객실 선택 실패: {e2}")
                     else:
@@ -435,7 +488,7 @@ class HotelCMSController:
             else:
                 print("  → 전체 객실 선택 건너뜀 (이미 선택됨)")
 
-            time.sleep(1)
+                sleep_s(1)
 
             # 조회 버튼 클릭
             try:
@@ -458,7 +511,7 @@ class HotelCMSController:
                     # 버튼이 클릭 가능할 때까지 대기
                     self.wait.until(EC.element_to_be_clickable((By.ID, "searchBtn")))
                     self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", search_btn)
-                    time.sleep(0.5)
+                    sleep_s(0.5)
                     
                     # 클릭 시도 (일반 클릭 → JS 클릭)
                     try:
@@ -469,7 +522,7 @@ class HotelCMSController:
                     print("  ✓ 조회 버튼 클릭")
                     print("  ⏳ 페이지 로드 대기 중...")
                     # 페이지가 제대로 로드될 때까지 충분히 기다림
-                    time.sleep(5)
+                    sleep_s(5)
                     # 추가로 RMO 버튼이 나타날 때까지 대기
                 self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//span[contains(.,'RMO')]")))
                 print("  ✓ 페이지 로드 완료")
@@ -545,7 +598,7 @@ class HotelCMSController:
                         
                         # RMO 버튼을 스크롤해서 보이게 하고 클릭
                         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", rmo_btn)
-                        time.sleep(0.1)
+                        sleep_s(0.1)
                         
                         # RMO 버튼 클릭 (여러 방법으로 시도)
                         try:
@@ -553,7 +606,7 @@ class HotelCMSController:
                         except Exception:
                             self.driver.execute_script("arguments[0].click();", rmo_btn)
                         
-                        time.sleep(0.2)
+                        sleep_s(0.2)
                         
                         # RMO 버튼 클릭 후 입력란 활성화 확인 (최대 0.5초 대기)
                         rmo_input_row = None
@@ -568,7 +621,7 @@ class HotelCMSController:
                             except Exception:
                                 pass
                             if attempt < 9:
-                                time.sleep(0.05)
+                                sleep_s(0.05)
                             rmo_input_row = None
 
                         if not rmo_input_row:
@@ -588,6 +641,29 @@ class HotelCMSController:
                             child_trs = self.driver.find_elements(By.XPATH, f"//tr[contains(@class,'child-{parent_id}') and @data-field='RM_RA']")
                         except Exception:
                             child_trs = []
+
+                        # 마감 상태 행에서 날짜별 마감 인덱스 수집
+                        closed_day_indices = set()
+                        try:
+                            close_rows = self.driver.find_elements(
+                                By.XPATH,
+                                f"//tr[contains(@class,'child-{parent_id}') and @data-field='CLOSE_YN']",
+                            )
+                            for close_row in close_rows:
+                                tds = close_row.find_elements(By.XPATH, ".//td[@data-field]")
+                                for close_idx, td in enumerate(tds):
+                                    try:
+                                        data_field = td.get_attribute("data-field") or ""
+                                        if not data_field.endswith("_KEY_VALUE"):
+                                            continue
+                                        text = (td.text or "").strip()
+                                        class_attr = td.get_attribute("class") or ""
+                                        if "마감" in text or "room-close" in class_attr:
+                                            closed_day_indices.add(close_idx)
+                                    except Exception:
+                                        continue
+                        except Exception:
+                            pass
 
                         if not child_trs:
                             print(f"    ⚠ 하위 요금 행(child-{parent_id})을 찾지 못했습니다.")
@@ -633,23 +709,39 @@ class HotelCMSController:
                         print(f"    → child-{parent_id} 행 처리 중... (RMO 방 타입: {rmo_room_type})")
 
                         # OTA 매핑: 기준가를 기반으로 계산
+                        def is_trip_label(label_text: str) -> bool:
+                            text = (label_text or '').lower()
+                            return ('trip.com' in text) or ('ctrip' in text)
+
                         def calc_new_val(label, base_price):
                             if base_price is None:
                                 return None
                             label_lower = label.lower()
+                            # 아고다 가격 캐싱용
                             if 'agoda' in label_lower or '아고다' in label_lower:
                                 return base_price
-                            # Trip.com: 별도 산식 없이 기타 OTA와 동일 처리 (기준가 + 10,000~15,000원)
-                            if 'trip.com' in label_lower:
-                                random_addon = random.randint(10, 15) * 1000
-                                return base_price + random_addon
+                            # Trip.com/ctrip은 15~20% 랜덤 적용
+                            if is_trip_label(label_lower):
+                                agoda_price = agoda_price_cache.get((date_key, lookup_room_type))
+                                pct = random.randint(15, 20) / 100.0
+                                if agoda_price is not None:
+                                    return int(int(agoda_price * (1 + pct)) / 1000) * 1000
+                                else:
+                                    return int(int(base_price * (1 + pct)) / 1000) * 1000
                             # 그 외 모든 OTA: 기준가 + 10,000~15,000원 범위의 랜덤 값 (천원 단위)
                             random_addon = random.randint(10, 15) * 1000  # 10000, 11000, 12000, ..., 15000
                             return base_price + random_addon
 
+                        # 아고다 가격 캐시용 딕셔너리 준비
+                        agoda_price_cache = {}
+                        rmo_input_total = 0
+                        rmo_changed_total = 0
+                        rmo_skipped_total = 0
                         for child_tr in child_trs:
                             try:
                                 label = child_tr.text.strip()
+                                # 디버깅: 라벨, rmo_room_type, child_room_type 출력
+                                debug(f"      [DEBUG] label: {label}")
                                 inputs = child_tr.find_elements(By.CSS_SELECTOR, "input[type='text']")
                                 if not inputs:
                                     continue
@@ -685,6 +777,12 @@ class HotelCMSController:
                                     'booking.com standard rate family studio': 'Family Room 5 person',
                                     'expedia room only family studio suite 2 bedrooms': 'Family Room 5 person',
                                     'agoda room only family room 5 pax': 'Family Room 5 person',
+                                    'trip.com (new) room only standard single room': 'Single Room',
+                                    'trip.com (new) room only economy double room': 'Economy Double Room',
+                                    'trip.com (new) room only 2-bed room': 'Twin Room',
+                                    'trip.com (new) room only double room': 'Double Room',
+                                    'trip.com (new) room only triple room': 'Triple Room',
+                                    'trip.com (new) room only family standard room': 'Family Room 3 person',
                                     'trip.com (new) room only family studio': 'Family Room 5 person',
                                     '야놀자 패밀리 스튜디오(주차불가) 패밀리 스튜디오 [주차불가]': 'Family Room 5 person',
                                 }
@@ -768,37 +866,40 @@ class HotelCMSController:
                                     continue
 
                                 # **중요**: 이 child_tr의 방 타입이 RMO 방 타입과 정확히 일치해야만 입력
+                                debug(f"      [DEBUG] rmo_room_type: {rmo_room_type}, child_room_type: {child_room_type}")
                                 if not child_room_type:
                                     # 방 타입을 찾을 수 없으면 스킵
                                     continue
+                                if child_room_type == rmo_room_type:
+                                    debug(f"      [DEBUG] OTA: {label}")
+                                lookup_room_type = child_room_type
+                                if lookup_room_type in ('Family 3p', 'Family Room 3p', 'Family 3', 'Family 3person'):
+                                    lookup_room_type = 'Family Room 3 person'
+                                elif lookup_room_type in ('Family 5p', 'Family Room 5p', 'Family 5', 'Family 5person'):
+                                    lookup_room_type = 'Family Room 5 person'
 
                                 input_count = 0
                                 changed_count = 0
                                 skipped_count = 0
-                                # 각 입력칸의 날짜별로 엑셀 기준가를 찾아 적용 (시작일~+14일)
-                                for idx, inp in enumerate(inputs):
-                                    # 날짜 식별: data-date/data-day가 있으면 사용, 없으면 인덱스로 date_list 매핑
-                                    date_attr = inp.get_attribute("data-date") or inp.get_attribute("data-day")
-                                    date_key = None
-                                    if date_attr:
-                                        date_key = str(date_attr).split()[0]
-                                    elif idx < len(date_list):
-                                        date_key = date_list[idx]
 
-                                    if not date_key or date_key not in base_prices_by_date:
+                                for i, inp in enumerate(inputs):
+                                    date_key = date_list[i] if i < len(date_list) else None
+                                    if not date_key:
+                                        continue
+                                    if i in closed_day_indices:
+                                        skipped_count += 1
+                                        continue
+                                    if lookup_room_type not in base_prices_by_date.get(date_key, {}):
                                         continue
 
-                                    # RMO 방 타입의 기준가 사용 (Family 키 정규화)
-                                    lookup_room_type = rmo_room_type
-                                    if rmo_room_type in ('Family 3p', 'Family Room 3p', 'Family 3', 'Family 3person'):
-                                        lookup_room_type = 'Family Room 3 person'
-                                    elif rmo_room_type in ('Family 5p', 'Family Room 5p', 'Family 5', 'Family 5person'):
-                                        lookup_room_type = 'Family Room 5 person'
-
-                                    if lookup_room_type not in base_prices_by_date[date_key]:
-                                        continue
-                                    
                                     day_base_price = base_prices_by_date[date_key][lookup_room_type]
+                                    label_lower = label.lower()
+                                    is_agoda = ('agoda' in label_lower) or ('아고다' in label_lower)
+                                    is_trip = is_trip_label(label)
+
+                                    if is_agoda:
+                                        agoda_price_cache[(date_key, lookup_room_type)] = day_base_price
+                                        debug(f"      [DEBUG] Agoda 캐시 저장: ({date_key}, {lookup_room_type}) = {day_base_price}")
 
                                     new_val = calc_new_val(label, day_base_price)
                                     if new_val is None:
@@ -810,38 +911,37 @@ class HotelCMSController:
                                         if display == 'none':
                                             continue
 
-                                        # 기존 가격 확인
                                         current_val_str = inp.get_attribute('value') or ''
                                         current_val_str = current_val_str.replace(',', '').strip()
-                                        
                                         try:
                                             current_val = int(current_val_str) if current_val_str else 0
                                         except:
                                             current_val = 0
-                                        
-                                        # **변경 필요 여부 판단**
-                                        needs_change = False
-                                        label_lower = label.lower()
-                                        is_agoda = ('agoda' in label_lower) or ('아고다' in label_lower)
 
+                                        needs_change = False
                                         if is_agoda:
-                                            # Agoda: 기준가와 정확히 일치해야 함 (다르면 무조건 덮어쓰기)
                                             needs_change = (current_val != day_base_price)
+                                        elif is_trip:
+                                            agoda_price = agoda_price_cache.get((date_key, lookup_room_type))
+                                            trip_base = agoda_price if agoda_price is not None else day_base_price
+                                            expected_min = int(int(trip_base * 1.15) / 1000) * 1000
+                                            expected_max = int(int(trip_base * 1.2) / 1000) * 1000
+                                            if current_val < expected_min or current_val > expected_max:
+                                                pct = random.randint(15, 20) / 100.0
+                                                new_val = int(int(trip_base * (1 + pct)) / 1000) * 1000
+                                                needs_change = True
+                                                debug(f"      [DEBUG] Trip.com/ctrip 강제입력: {current_val} → {new_val} (아고다={agoda_price}, 기준가={day_base_price})")
                                         else:
-                                            # 기타 OTA(Trip 포함): 기준가+10,000~15,000 범위를 벗어나면 덮어쓰기
                                             expected_min = day_base_price + 10000
                                             expected_max = day_base_price + 15000
                                             if current_val == 0 or current_val < expected_min or current_val > expected_max:
                                                 needs_change = True
-                                            # 범위 안에 있으면 스킵
-                                        
+
                                         if not needs_change:
-                                            # 변경 필요 없음 - 스킵
                                             skipped_count += 1
                                             continue
-                                        
-                                        # 가격 변경 필요 - 로그 및 change_history 기록
-                                        if current_val != 0:  # 기존 값이 있으면 로그 기록
+
+                                        if current_val != 0:
                                             self.log_price_change(
                                                 change_date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                                 target_date=date_key,
@@ -850,7 +950,6 @@ class HotelCMSController:
                                                 new_price=new_val,
                                                 ota_label=label
                                             )
-                                            # change_history에도 추가 (저장 판단용)
                                             self.change_history.append({
                                                 'date': date_key,
                                                 'room_type': rmo_room_type,
@@ -858,14 +957,17 @@ class HotelCMSController:
                                                 'new_price': new_val,
                                                 'ota_label': label[:40] if len(label) > 40 else label
                                             })
-                                        
-                                        self.driver.execute_script("arguments[0].focus();", inp)
-                                        inp.clear()
-                                        inp.send_keys(f"{new_val:,}")
+
+                                        if is_trip:
+                                            debug(f"      [DEBUG] Trip.com/ctrip send_keys: {label} → {new_val:,}")
+                                        if not set_input_value(inp, f"{new_val:,}"):
+                                            print(f"      ⚠ 입력 실패: {label}")
+                                            continue
                                         input_count += 1
-                                        if current_val > 0:  # 기존 값이 있었다면 변경으로 카운트
+                                        if current_val > 0:
                                             changed_count += 1
                                     except Exception as e:
+                                        print(f"      [ERROR] 입력 실패: {label} / {e}")
                                         continue
 
                                 if input_count > 0:
@@ -875,20 +977,30 @@ class HotelCMSController:
                                     else:
                                         addon = new_val - day_base_price
                                         price_type = f"{new_val:,}원 (기준가 {day_base_price:,}원 + {addon:,}원)"
-                                    
                                     status_msg = f"입력 {input_count}개"
                                     if changed_count > 0:
                                         status_msg += f", 변경 {changed_count}개"
                                     if skipped_count > 0:
                                         status_msg += f", 스킵 {skipped_count}개"
-                                    
-                                    print(f"    ✓ {label}: {price_type} → {status_msg}" if label else f"    ✓ (공백 행): {price_type} → {status_msg}")
+                                    log_ota(f"    ✓ {label}: {price_type} → {status_msg}" if label else f"    ✓ (공백 행): {price_type} → {status_msg}")
                                 elif skipped_count > 0:
-                                    print(f"    ⊙ {label}: 가격 동일 (스킵 {skipped_count}개)")
+                                    log_ota(f"    ⊙ {label}: 가격 동일 (스킵 {skipped_count}개)")
+
+                                rmo_input_total += input_count
+                                rmo_changed_total += changed_count
+                                rmo_skipped_total += skipped_count
                             except Exception:
                                 pass  # 개별 child 행 실패는 조용히 무시
 
-                        time.sleep(0.1)
+                        if rmo_input_total > 0 or rmo_skipped_total > 0:
+                            summary_msg = f"    ✓ {rmo_room_type}: 입력 {rmo_input_total}개"
+                            if rmo_changed_total > 0:
+                                summary_msg += f", 변경 {rmo_changed_total}개"
+                            if rmo_skipped_total > 0:
+                                summary_msg += f", 스킵 {rmo_skipped_total}개"
+                            log_summary(summary_msg)
+
+                        sleep_s(0.1)
                         # 이 RMO 처리 완료, for 루프 종료 후 while으로 다음 RMO 처리
                         break
                     except Exception as e:
@@ -902,7 +1014,7 @@ class HotelCMSController:
                     print(f"    [Iteration {iteration_count}] 미처리된 RMO 없음, 루프 종료")
                     break
                 
-                time.sleep(0.1)  # 다음 iteration 전 대기 (페이지 렌더링)
+                sleep_s(0.1)  # 다음 iteration 전 대기 (페이지 렌더링)
 
             # 변경사항이 있을 때만 저장
             if not self.change_history:
@@ -928,13 +1040,13 @@ class HotelCMSController:
                     
                     if save_btn:
                         self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", save_btn)
-                        time.sleep(0.5)
+                        sleep_s(0.5)
                         try:
                             save_btn.click()
                         except:
                             self.driver.execute_script("arguments[0].click();", save_btn)
                         print("  ✓ 저장 버튼 클릭 완료")
-                        time.sleep(2)
+                        sleep_s(2)
                         
                         # "저장되었습니다" 팝업의 확인 버튼 클릭
                         try:
@@ -943,7 +1055,7 @@ class HotelCMSController:
                             )
                             confirm_button.click()
                             print("  ✓ 저장 확인 완료")
-                            time.sleep(1)
+                            sleep_s(1)
                         except Exception as e:
                             print(f"  ⚠ 확인 버튼 클릭 건너뜀: {e}")
                     else:
@@ -2667,6 +2779,11 @@ def main():
             # 시작일부터 종료일까지 15일씩 반복 처리 (매번 +14일 화면에서 한 번에 처리)
             current_date = datetime.strptime(start_date_str, "%Y-%m-%d")
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+
+            if end_date < current_date:
+                print(f"❌ 종료일이 시작일보다 빠릅니다: {start_date_str} ~ {end_date_str}")
+                print("   종료일을 시작일 이후로 입력하거나 엔터로 자동 설정을 사용하세요.")
+                return
             
             while current_date <= end_date:
                 date_str = current_date.strftime("%Y-%m-%d")
