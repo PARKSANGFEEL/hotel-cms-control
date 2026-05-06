@@ -4,13 +4,13 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # CMS 접속 정보
 CMS_URL = os.getenv('CMS_URL', 'https://wingscms.com/#/app/zz/zz03_0100')
 CMS_COMPANY_ID = os.getenv('CMS_COMPANY_ID', 'GRIDINN')
 CMS_USERNAME = os.getenv('CMS_USERNAME', 'gridpsp')
-CMS_PASSWORD = os.getenv('CMS_PASSWORD', 'zbfl=726331')
+CMS_PASSWORD = os.getenv('CMS_PASSWORD', 'xofls0726!')
 
 # 방 타입 정의
 
